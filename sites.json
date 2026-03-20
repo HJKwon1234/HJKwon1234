@@ -1,0 +1,82 @@
+[
+    {
+        "url": "https://www.bow.co.kr/",
+        "check_string": "ok",
+        "load_resources": false,
+        "capture_pcap": true,
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        },
+        "save_path": "C:\\gemini_cli\\web_monitor_New_V\\monitoring\\www.bow.co.kr_20251223_180024"
+    },
+    {
+        "url": "https://www.bow.co.kr/",
+        "check_string": "ok",
+        "load_resources": true,
+        "capture_pcap": true,
+        "verify_ssl": true,
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        },
+        "save_path": "C:\\gemini_cli\\web_monitor_New_V\\monitoring\\www.bow.co.kr_20251223_180024"
+    },
+    {
+        "url": "http://safebunker.net/",
+        "ip": "",
+        "load_resources": false,
+        "capture_pcap": true,
+        "resource_timeout": 10,
+        "max_resources": 100,
+        "verify_ssl": true,
+        "save_path": ""
+    },
+    {
+        "url": "https://192.168.0.170:8000/",
+        "ip": "192.168.0.170",
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        }
+    },
+    {
+        "url": "https://www.naver.com/",
+        "load_resources": true,
+        "capture_pcap": true,
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        },
+        "save_path": ""
+    },
+       {
+        "url": "https://www.kfi.or.kr/portal/main/main.do/",
+        "load_resources": true,
+        "capture_pcap": true,
+        "verify_ssl": true,
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        },
+        "save_path": ""
+    },
+          {
+        "url": "https://mail.airport.kr:9443/",
+        "load_resources": true,
+        "capture_pcap": true,
+        "verify_ssl": true,
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        },
+        "save_path": ""
+    },
+    {
+        "url": "http://example.com/",
+        "alert_thresholds": {
+            "max_response_time_ms": 2000,
+            "expected_status_code": 200
+        }
+    }
+]
