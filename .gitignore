@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+
+# 시세 캐시 등 로컬 산출물
+prices.json
+.env
