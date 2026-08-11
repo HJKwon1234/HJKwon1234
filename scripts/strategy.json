@@ -6,7 +6,11 @@
     "style": "중장기 가치투자 (3개월~1년 이상)",
     "accounts": { "토스증권": "메인, 해외 성장+배당", "한국투자 ISA": "국내 배당, 비과세" },
     "sectors": ["AI/반도체", "에너지·전력인프라", "2차전지", "방산·조선", "배당"],
-    "dca": { "usd_per_day": 12.5, "tickers": ["SCHD", "VOO", "JEPQ", "TSLA", "AVGO", "LITE", "MU", "GOOGL"] },
+    "dca": {
+      "usd_per_day": 6.0,
+      "allocation": { "SCHD": 2.0, "JEPI": 2.0, "PLTR": 1.0, "DRAM": 1.0 },
+      "_note": "2026-08-11 실제 매수 내역으로 확인. 인수인계 자료에 적힌 '$12.5/일, SCHD·VOO·JEPQ·TSLA·AVGO·LITE·MU·GOOGL 8종목'은 현재 설정과 다르다. VOO 는 적립 대상이 아니다."
+    },
     "other_assets": { "현물 금": "5돈, 추가 매수 없음", "달러 적립": "1,000원/일" },
     "year_end_target_krw": [15000000, 17000000],
     "_target_note": "기존 20M 에서 하향 조정. 7월 폭락으로 12.3M 까지 하락했고, 전고점(9,114) 회복은 평균 3.1년 소요 전망. 회복 본게임은 2027년."

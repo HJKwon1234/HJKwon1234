@@ -113,25 +113,40 @@ def sec_fx(st: dict, fx: float) -> None:
 def sec_alloc(pf: dict, st: dict) -> None:
     head("목표 비중 대비 현재 (해외 계좌)")
     ov, _ = totals(pf["overseas"])
-    dca = st["profile"]["dca"]
-    per_day = dca["usd_per_day"] * 1 / len(dca["tickers"])  # 종목당 균등 가정
-    need_total = 0.0
+    alloc = st["profile"]["dca"]["allocation"]
     targets = {k: v for k, v in st["allocation_targets"].items() if not k.startswith("_")}
+
     for tk, (lo, hi) in targets.items():
         row = next((r for r in pf["overseas"] if key_of(r) == tk), None)
         if row is None:
             continue
         v = row["qty"] * row["last"]
-        mid = (lo + hi) / 2
-        need = ov * mid - v
-        need_total += max(0.0, need)
-        print(f"  {tk:<6} 현재 {v / ov * 100:5.2f}%   목표 {lo * 100:.0f}~{hi * 100:.0f}%   중간값까지 {need:>+9,.0f} USD")
-    if need_total > 0:
-        days = need_total / (per_day * len(targets))
-        print(f"\n  부족분 합계 ${need_total:,.0f}")
-        print(f"  적립식(${dca['usd_per_day']}/일 ÷ {len(dca['tickers'])}종목)만으로 메우면 약 {days:,.0f}일 ({days / 365:.1f}년)")
-        if days > 365:
-            print("  ⚠️  1년 초과 — 적립식만으로는 도달 불가. 목표 재조정 또는 정예화 대금 배정이 필요하다.")
+        need = ov * ((lo + hi) / 2) - v
+        rate = alloc.get(tk, 0.0)
+        # 적립 대상이 아니면 이 경로로는 영원히 목표에 닿지 않는다. 그 사실을 숨기지 않는다.
+        if need <= 0:
+            eta = "달성"
+        elif rate == 0:
+            eta = "🔴 적립 대상 아님 — 도달 불가"
+        else:
+            d = need / rate
+            eta = f"{d:,.0f}일 ({d / 365:.1f}년) @ ${rate:.2f}/일"
+        print(f"  {tk:<6} 현재 {v / ov * 100:5.2f}%  목표 {lo * 100:.0f}~{hi * 100:.0f}%  부족 {need:>+8,.0f} USD  →  {eta}")
+
+    head("적립식 실제 설정")
+    total = st["profile"]["dca"]["usd_per_day"]
+    for tk, amt in sorted(alloc.items(), key=lambda kv: -kv[1]):
+        row = next((r for r in pf["overseas"] if key_of(r) == tk), None)
+        w = (row["qty"] * row["last"] / ov * 100) if row else 0.0
+        share = amt / total * 100
+        # 적립 몫이 현재 비중보다 크면 비중이 오르고, 작으면 계좌가 커지며 희석된다.
+        # "큰 종목에 적립하니 집중도가 오른다"는 직관은 틀릴 수 있어 두 값을 비교해 판정한다.
+        arrow = "↑ 비중 상승" if share > w else "↓ 희석"
+        print(f"  {tk:<6} ${amt:.2f}/일 (적립의 {share:4.1f}%)   현재 비중 {w:5.2f}%   → {arrow}")
+    covered = sum(amt for tk, amt in alloc.items() if tk in {r["ticker"] for r in pf["overseas"] if "커버드콜" in r.get("tags", [])})
+    if covered:
+        print(f"  ※ 이 중 ${covered:.2f}/일 ({covered / total * 100:.0f}%) 이 커버드콜로 간다 — 상한 30% 접근 속도를 좌우한다.")
+    print(f"  합계 ${total:.2f}/일  ≈ ${total * 365:,.0f}/년")
 
 
 def sec_principles(pf: dict, st: dict) -> None:
