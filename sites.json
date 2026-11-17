@@ -1,0 +1,140 @@
+[
+  {
+    "url": "https://www.bow.co.kr/",
+    "ip": "",
+    "check_string": "ok",
+    "ddos_auth": true,
+    "alert_thresholds": {
+      "max_response_time_ms": 2000,
+      "expected_status_code": 200
+    }
+  },
+  {
+    "url": "https://ddos.tossinvest.com/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": true,
+    "alert_thresholds": {
+      "max_response_time_ms": 2000,
+      "expected_status_code": 200
+    }
+  },
+  {
+    "url": "https://eps.bnksys.co.kr/opro/main/intro.do",
+    "ip": "",
+    "ddos_auth": true,
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    }
+  },
+   {
+    "url": "https://ddostest.kdic.or.kr/di/ethicsbz/PbcrGoal/selectScrn.do",
+    "ip": "",
+    "ddos_auth": true,
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    }
+  },
+  {
+    "url": "https://aq.hira.or.kr/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    },
+    "adaptive": true,
+    "check_string": "",
+    "resource_timeout": 10,
+    "save_path": ""
+  },
+    {
+    "url": "https://es.hira.or.kr/index.jsp",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    },
+    "adaptive": true,
+    "check_string": "",
+    "resource_timeout": 10,
+    "save_path": ""
+  },
+    {
+    "url": "https://ndur.hira.or.kr",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    },
+    "adaptive": true,
+    "check_string": "",
+    "resource_timeout": 10,
+    "save_path": ""
+  },
+  {
+    "url": "https://http-dos.demo-lab1.hkk-cloud.site/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome124",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    }
+  },
+    {
+    "url": "https://gohttpbin.whyj.dev/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome124",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    }
+  },
+    {
+    "url": "https://www.khis.kr/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome124",
+    "alert_thresholds": {
+      "max_response_time_ms": 5000,
+      "expected_status_code": 200
+    }
+  },
+      {
+    "url": "https://222.121.76.141:9443/data/large-payload#chapter-2",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome124",
+    "alert_thresholds": {
+      "max_response_time_ms": 3000,
+      "expected_status_code": 200
+    }
+  },
+  {
+    "url": "https://222.121.76.141:9443/",
+    "ip": "",
+    "ddos_auth": true,
+    "http2": false,
+    "impersonate": "chrome124",
+    "alert_thresholds": {
+      "max_response_time_ms": 2000,
+      "expected_status_code": 200
+    }
+  }
+]

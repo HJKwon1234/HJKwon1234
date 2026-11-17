@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 모니터링 산출물 (CLI 종료 시 생성되는 로그/리포트/그래프)
+monitoring/
+*.xlsx
+*.png
+monitor_log_*.txt
+
+# OS / 에디터
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# 테스트 임시 파일
+tests/_*.json
+
+# 문서용 이미지는 추적
+!docs/
+!docs/*.png

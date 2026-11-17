@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDoS 모의 훈련 웹 모니터링</title>
+<!-- Chart.js는 로컬에 포함(vendored) — 외부망이 차단된 내부망/에어갭 환경에서도 동작 -->
+<script src="/static/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171f2e; --panel2:#1e2838; --border:#2a3850;
+    --text:#e6edf6; --muted:#8a9bbd;
+    --accent:#4f9cf9; --ok:#30c48d; --warn:#f2b63c; --bad:#f2545b; --crit:#d6336c;
+    --chip:#223049;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    font-size:14px;line-height:1.5}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:20}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap}
+  .badge{font-size:11px;padding:3px 8px;border-radius:999px;background:var(--chip);
+    color:var(--muted);border:1px solid var(--border)}
+  .badge.on{color:var(--ok);border-color:#1f6b50}
+  .badge.off{color:var(--muted)}
+  .spacer{flex:1}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+  .dot.run{background:var(--ok);box-shadow:0 0 0 3px rgba(48,196,141,.2)}
+  .dot.stop{background:var(--muted)}
+  main{padding:18px 20px;max-width:1280px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
+    margin:0 0 12px}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+  label.fld{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+  select,input[type=number],input[type=text]{background:var(--panel2);color:var(--text);
+    border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:14px;width:100%}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  button{cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;transition:.15s}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06121f}
+  button.danger{background:var(--bad);border-color:var(--bad);color:#2a0608}
+  button.ghost{background:transparent}
+  .sitepick{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;max-height:160px;overflow:auto}
+  .sitepick label{display:flex;align-items:center;gap:7px;background:var(--panel2);
+    border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer;max-width:100%}
+  .sitepick label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+  .agg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .stat .v{font-size:22px;font-weight:700;margin-top:4px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden}
+  .card .statusbar{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .card.up .statusbar{background:var(--ok)}
+  .card.down .statusbar{background:var(--bad)}
+  .card.idle .statusbar{background:var(--muted)}
+  .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .card .url{font-weight:700;font-size:13.5px;word-break:break-all;padding-left:6px}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+  .pill.up{background:rgba(48,196,141,.15);color:var(--ok)}
+  .pill.down{background:rgba(242,84,91,.15);color:var(--bad)}
+  .pill.idle{background:var(--chip);color:var(--muted)}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:12px 0 10px;padding-left:6px}
+  .metrics div{display:flex;justify-content:space-between;font-size:12.5px}
+  .metrics .lab{color:var(--muted)}
+  .rt-big{font-size:20px;font-weight:800}
+  .mini{position:relative;height:42px;width:100%;margin-left:6px}
+  .mini canvas{position:absolute;inset:0}
+  .meta{font-size:11px;color:var(--muted);padding-left:6px;word-break:break-all;margin-top:6px}
+  .alerts{max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  .alert{display:flex;gap:10px;align-items:baseline;font-size:12.5px;padding:7px 10px;
+    border-radius:8px;background:var(--panel2);border-left:3px solid var(--border)}
+  .alert .t{color:var(--muted);font-variant-numeric:tabular-nums}
+  .alert.DOWN{border-left-color:var(--bad)}
+  .alert.RECOVERY{border-left-color:var(--ok)}
+  .alert.CRITICAL{border-left-color:var(--crit)}
+  .alert.ALERT{border-left-color:var(--warn)}
+  .alert .lv{font-weight:700;min-width:70px}
+  .alert.DOWN .lv{color:var(--bad)} .alert.RECOVERY .lv{color:var(--ok)}
+  .alert.CRITICAL .lv{color:var(--crit)} .alert.ALERT .lv{color:var(--warn)}
+  .empty{color:var(--muted);font-size:12.5px;padding:10px}
+  /* 설정 모달 */
+  .modal{position:fixed;inset:0;background:rgba(6,10,18,.72);display:none;z-index:50;
+    align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+  .modal.show{display:flex}
+  .modal .box{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    width:100%;max-width:880px;padding:20px}
+  .modal h2{margin-top:0}
+  table.editor{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.editor th,table.editor td{border:1px solid var(--border);padding:6px;text-align:left;vertical-align:middle}
+  table.editor th{color:var(--muted);font-weight:600;background:var(--panel2);font-size:11px}
+  table.editor input[type=text],table.editor input[type=number]{padding:5px 7px;font-size:12px}
+  table.editor input[type=checkbox]{width:16px;height:16px}
+  .rowdel{color:var(--bad);cursor:pointer;font-weight:700;border:none;background:none;font-size:16px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--panel2);border:1px solid var(--border);border-radius:10px;
+    padding:11px 18px;font-size:13px;z-index:60;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .toast.err{border-color:var(--bad);color:#ffd7d9}
+  .toast.ok{border-color:var(--ok)}
+  @media (max-width:560px){ .metrics{grid-template-columns:1fr} header h1{font-size:15px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ DDoS 모의 훈련 웹 모니터링</h1>
+  <div class="badges" id="engineBadges"></div>
+  <div class="spacer"></div>
+  <div id="runState"><span class="dot stop"></span><span>중지됨</span></div>
+  <button class="ghost" id="btnSettings">⚙ 사이트 설정</button>
+</header>
+
+<main class="grid">
+  <!-- 제어 패널 -->
+  <section class="panel">
+    <h2>모니터링 제어</h2>
+    <div class="controls">
+      <label class="fld">모드
+        <select id="mode">
+          <option value="1">Mode 1 — HTML 전용</option>
+          <option value="2">Mode 2 — HTML + 리소스</option>
+          <option value="3">Mode 3 — 지연 분해(DNS/TCP/TLS)</option>
+        </select>
+      </label>
+      <label class="fld">사이클 간격(초)
+        <input type="number" id="interval" min="1" value="3">
+      </label>
+      <div class="btns">
+        <button class="primary" id="btnStart">▶ 시작</button>
+        <button class="danger" id="btnStop" disabled>■ 중지</button>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <label class="fld" style="margin:0">모니터링 대상 선택</label>
+        <div class="btns">
+          <button class="ghost" id="selAll" style="padding:5px 10px;font-size:12px">전체</button>
+          <button class="ghost" id="selNone" style="padding:5px 10px;font-size:12px">해제</button>
+        </div>
+      </div>
+      <div class="sitepick" id="sitePick"></div>
+    </div>
+  </section>
+
+  <!-- 집계 -->
+  <section class="panel">
+    <h2>집계 현황 <span id="cycleInfo" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0"></span></h2>
+    <div class="agg" id="agg"></div>
+  </section>
+
+  <!-- 응답시간 차트 -->
+  <section class="panel">
+    <h2>응답 시간 추이 (ms)</h2>
+    <div style="height:260px"><canvas id="rtChart"></canvas></div>
+  </section>
+
+  <!-- 사이트 카드 -->
+  <section class="panel">
+    <h2>사이트 상태</h2>
+    <div class="cards" id="cards"><div class="empty">모니터링을 시작하면 사이트 상태가 표시됩니다.</div></div>
+  </section>
+
+  <!-- 경고/이벤트 -->
+  <section class="panel">
+    <h2>경고 · 장애 이벤트</h2>
+    <div class="alerts" id="alerts"><div class="empty">아직 이벤트가 없습니다.</div></div>
+  </section>
+</main>
+
+<!-- 설정 모달 -->
+<div class="modal" id="settings">
+  <div class="box">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2>사이트 설정 (sites.json)</h2>
+      <button class="ghost" id="btnCloseSettings">✕ 닫기</button>
+    </div>
+    <p class="meta" id="sitesPath"></p>
+    <div style="overflow:auto">
+      <table class="editor" id="editor">
+        <thead><tr>
+          <th style="min-width:200px">URL</th><th>고정 IP</th>
+          <th title="DDoS 인증 쿠키 자동 처리">DDoS인증</th>
+          <th title="HTTP/2 사용">HTTP2</th>
+          <th title="최대 응답시간(ms)">임계 ms</th>
+          <th title="기대 상태코드">상태코드</th>
+          <th>check_string</th><th></th>
+        </tr></thead>
+        <tbody id="editorBody"></tbody>
+      </table>
+    </div>
+    <div class="btns" style="margin-top:12px">
+      <button class="ghost" id="btnAddRow">＋ 사이트 추가</button>
+      <div class="spacer" style="flex:1"></div>
+      <button class="primary" id="btnSaveSites">💾 저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = {
+  async get(u){ const r = await fetch(u); return r.json(); },
+  async post(u,b){ const r = await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}); return {status:r.status, body: await r.json()}; }
+};
+function toast(msg, kind){ const t=$('#toast'); t.textContent=msg; t.className='toast show '+(kind||''); setTimeout(()=>t.className='toast',2600); }
+
+let allSites = [];      // sites.json
+let poll = null;
+let chart = null;
+const palette = ['#4f9cf9','#30c48d','#f2b63c','#f2545b','#b07cf0','#2bc5c5','#f08a3c','#7c9cf0','#d6336c','#59c15b','#c0a93c','#e066af'];
+const colorFor = {};
+function colorOf(url,i){ if(!colorFor[url]) colorFor[url]=palette[i%palette.length]; return colorFor[url]; }
+
+// ---------- 엔진 배지 ----------
+async function loadEngine(){
+  const e = await api.get('/api/engine');
+  const b = [['HTTP/2',e.http2],['httpx',e.httpx],['matplotlib',e.matplotlib],['pandas',e.pandas],['bs4',e.bs4]];
+  $('#engineBadges').innerHTML = `<span class="badge">엔진 ${e.version}</span>` +
+    b.map(([n,on])=>`<span class="badge ${on?'on':'off'}">${n} ${on?'✓':'✕'}</span>`).join('');
+}
+
+// ---------- 사이트 선택 목록 ----------
+async function loadSites(){
+  const d = await api.get('/api/sites');
+  allSites = d.sites || [];
+  $('#sitesPath').textContent = '파일: ' + d.path;
+  renderSitePick();
+}
+function renderSitePick(){
+  const box = $('#sitePick');
+  if(!allSites.length){ box.innerHTML = '<div class="empty">등록된 사이트가 없습니다. ⚙ 사이트 설정에서 추가하세요.</div>'; return; }
+  box.innerHTML = allSites.map((s,i)=>`
+    <label><input type="checkbox" class="sp" value="${encodeURIComponent(s.url)}" checked>
+    <span title="${s.url}">${s.url}</span></label>`).join('');
+}
+function selectedUrls(){
+  return [...document.querySelectorAll('.sp:checked')].map(c=>decodeURIComponent(c.value));
+}
+
+// ---------- 시작/중지 ----------
+async function start(){
+  const urls = selectedUrls();
+  if(!urls.length){ toast('최소 1개 사이트를 선택하세요.','err'); return; }
+  const body = { urls, interval: +$('#interval').value||3, mode: +$('#mode').value||1 };
+  const {status, body:res} = await api.post('/api/monitor/start', body);
+  if(status===200 && res.ok){ toast('모니터링을 시작했습니다.','ok'); setRunningUI(true); startPoll(); }
+  else { toast(res.message||res.error||'시작 실패','err'); }
+}
+async function stop(){
+  const {body:res} = await api.post('/api/monitor/stop');
+  toast(res.message||'중지', res.ok?'ok':'err');
+  setRunningUI(false); stopPoll(); await refresh();
+}
+function setRunningUI(run){
+  $('#btnStart').disabled = run; $('#btnStop').disabled = !run;
+  $('#runState').innerHTML = run
+    ? '<span class="dot run"></span><span>모니터링 중</span>'
+    : '<span class="dot stop"></span><span>중지됨</span>';
+  document.querySelectorAll('.sp,#mode,#interval').forEach(el=>el.disabled=run);
+}
+
+// ---------- 폴링 ----------
+function startPoll(){ stopPoll(); refresh(); poll = setInterval(refresh, 1000); }
+function stopPoll(){ if(poll){ clearInterval(poll); poll=null; } }
+
+async function refresh(){
+  let s; try{ s = await api.get('/api/monitor/status'); }catch(e){ return; }
+  renderAgg(s); renderCards(s); renderAlerts(s); renderChart(s);
+  $('#cycleInfo').textContent = s.running ? `· 사이클 ${s.cycle} · 간격 ${s.interval}s · 시작 ${s.started_at||''}` : '';
+  if(s.running && $('#btnStart').disabled===false){ setRunningUI(true); if(!poll) startPoll(); }
+  if(!s.running){ setRunningUI(false); stopPoll(); }
+}
+
+function renderAgg(s){
+  const a = s.aggregate||{};
+  const items = [
+    ['대상 사이트', a.site_count??0],
+    ['정상(현재)', `${a.up_now??0} / ${a.site_count??0}`],
+    ['총 점검', a.total_checks??0],
+    ['성공률', (a.success_rate??0)+'%'],
+    ['평균 응답', (a.avg_rt??0)+'ms'],
+  ];
+  $('#agg').innerHTML = items.map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+
+function renderCards(s){
+  const box = $('#cards');
+  if(!s.sites||!s.sites.length){ box.innerHTML='<div class="empty">모니터링을 시작하면 사이트 상태가 표시됩니다.</div>'; return; }
+  box.innerHTML = s.sites.map((st,i)=>{
+    const L = st.latest;
+    const cls = st.total===0 ? 'idle' : (st.up ? 'up':'down');
+    const pill = st.total===0 ? '<span class="pill idle">대기</span>'
+      : (st.up ? '<span class="pill up">정상</span>' : '<span class="pill down">장애</span>');
+    const rt = L ? L.response_time_ms : '–';
+    const statusTxt = L ? (L.error ? ('실패: '+L.error) : L.status) : '–';
+    const extra = (L && L.breakdown)
+      ? `<div style="grid-column:1/3"><span class="lab">분해</span> DNS ${L.breakdown.dns} · TCP ${L.breakdown.tcp} · TLS ${L.breakdown.tls} · 응답 ${L.breakdown.resp} · 본문 ${L.breakdown.body} ms</div>` : '';
+    return `<div class="card ${cls}"><div class="statusbar"></div>
+      <div class="top"><div class="url">${st.url}</div>${pill}</div>
+      <div class="metrics">
+        <div><span class="lab">응답시간</span><span class="rt-big" style="color:${st.up?'var(--ok)':'var(--bad)'}">${rt}${L&&!L.error?'ms':''}</span></div>
+        <div><span class="lab">상태</span><span>${statusTxt}</span></div>
+        <div><span class="lab">성공률</span><span>${st.success_rate}%</span></div>
+        <div><span class="lab">평균/최대</span><span>${st.avg_rt}/${st.max_rt}ms</span></div>
+        <div><span class="lab">프로토콜</span><span>${L?L.http_version:'–'} · ${L?L.tls_version:'–'}</span></div>
+        <div><span class="lab">연속실패</span><span style="color:${st.consec_fail>0?'var(--bad)':'inherit'}">${st.consec_fail}</span></div>
+        ${extra}
+      </div>
+      <div class="mini"><canvas id="mini-${i}"></canvas></div>
+      <div class="meta">IP ${L?L.ip:'–'} · 크기 ${L?L.total_size:0}B${st.ddos_auth?' · DDoS인증':''}${st.static_ip?' · 고정IP '+st.static_ip:''}${L&&L.check?' · '+L.check:''}</div>
+    </div>`;
+  }).join('');
+  // 미니 스파크라인
+  s.sites.forEach((st,i)=>drawMini(i, st));
+}
+
+const HAS_CHART = (typeof Chart !== 'undefined');
+const miniCharts = {};
+function drawMini(i, st){
+  if(!HAS_CHART) return;
+  const el = document.getElementById('mini-'+i); if(!el) return;
+  try{
+  const data = st.history.map(h=>h.rt);
+  const labels = st.history.map(h=>h.clock);
+  const col = colorOf(st.url,i);
+  if(miniCharts[i]){ miniCharts[i].destroy(); }
+  miniCharts[i] = new Chart(el,{type:'line',
+    data:{labels,datasets:[{data,borderColor:col,borderWidth:1.5,pointRadius:0,fill:true,
+      backgroundColor:col+'22',tension:.25}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{display:false},y:{display:false}}}});
+  }catch(e){ /* 차트 실패는 무시 (카드/경고 렌더링에 영향 없음) */ }
+}
+
+function renderChart(s){
+  if(!HAS_CHART) return;
+  const el = $('#rtChart');
+  const datasets = (s.sites||[]).map((st,i)=>({
+    label: st.url.replace(/^https?:\/\//,'').slice(0,28),
+    data: st.history.map(h=>h.rt),
+    borderColor: colorOf(st.url,i), backgroundColor: colorOf(st.url,i)+'22',
+    borderWidth:1.8, pointRadius:0, tension:.25, spanGaps:true
+  }));
+  // 공통 라벨(가장 긴 히스토리 기준 — 동일 사이클 측정이라 길이 일치)
+  let labels=[]; (s.sites||[]).forEach(st=>{ if(st.history.length>labels.length) labels=st.history.map(h=>h.clock); });
+  if(!chart){
+    chart = new Chart(el,{type:'line',data:{labels,datasets},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{labels:{color:'#8a9bbd',boxWidth:12,font:{size:11}}}},
+        scales:{x:{ticks:{color:'#8a9bbd',maxTicksLimit:8,font:{size:10}},grid:{color:'#223049'}},
+                y:{ticks:{color:'#8a9bbd',font:{size:10}},grid:{color:'#223049'},title:{display:true,text:'ms',color:'#8a9bbd'}}}}});
+  } else {
+    chart.data.labels = labels; chart.data.datasets = datasets; chart.update('none');
+  }
+}
+
+function renderAlerts(s){
+  const box = $('#alerts');
+  if(!s.alerts||!s.alerts.length){ box.innerHTML='<div class="empty">아직 이벤트가 없습니다.</div>'; return; }
+  box.innerHTML = s.alerts.map(a=>`<div class="alert ${a.level}">
+    <span class="t">${a.clock}</span><span class="lv">${a.level}</span>
+    <span style="flex:1">${a.url.replace(/^https?:\/\//,'')} — ${a.msg}</span></div>`).join('');
+}
+
+// ---------- 설정(사이트 편집) ----------
+function openSettings(){ renderEditor(); $('#settings').classList.add('show'); }
+function closeSettings(){ $('#settings').classList.remove('show'); }
+function renderEditor(){
+  const b = $('#editorBody');
+  b.innerHTML = allSites.map(s=>editorRow(s)).join('') || editorRow({url:''});
+}
+function editorRow(s){
+  const thr = s.alert_thresholds||{};
+  const esc = v => (v==null?'':String(v)).replace(/"/g,'&quot;');
+  return `<tr>
+    <td><input type="text" class="e-url" value="${esc(s.url)}" placeholder="https://example.com/"></td>
+    <td><input type="text" class="e-ip" value="${esc(s.ip)}" placeholder="(선택)" style="width:110px"></td>
+    <td style="text-align:center"><input type="checkbox" class="e-ddos" ${s.ddos_auth?'checked':''}></td>
+    <td style="text-align:center"><input type="checkbox" class="e-h2" ${s.http2===false?'':'checked'}></td>
+    <td><input type="number" class="e-ms" value="${esc(thr.max_response_time_ms)}" style="width:90px"></td>
+    <td><input type="number" class="e-code" value="${esc(thr.expected_status_code)}" placeholder="200" style="width:75px"></td>
+    <td><input type="text" class="e-cs" value="${esc(s.check_string)}" placeholder="(선택)" style="width:120px"></td>
+    <td style="text-align:center"><button class="rowdel" title="삭제">✕</button></td>
+  </tr>`;
+}
+function collectEditor(){
+  return [...$('#editorBody').querySelectorAll('tr')].map(tr=>{
+    const g = c => tr.querySelector(c);
+    const site = {
+      url: g('.e-url').value.trim(),
+      ip: g('.e-ip').value.trim(),
+      ddos_auth: g('.e-ddos').checked,
+      http2: g('.e-h2').checked,
+    };
+    const cs = g('.e-cs').value.trim(); if(cs) site.check_string = cs;
+    const ms = g('.e-ms').value, code = g('.e-code').value;
+    const thr = {};
+    if(ms) thr.max_response_time_ms = +ms;
+    if(code) thr.expected_status_code = +code;
+    if(Object.keys(thr).length) site.alert_thresholds = thr;
+    return site;
+  }).filter(s=>s.url);
+}
+async function saveSites(){
+  const sites = collectEditor();
+  const {status, body:res} = await api.post('/api/sites', {sites});
+  if(status===200 && res.ok){ allSites = res.sites; renderSitePick(); toast('사이트 설정을 저장했습니다.','ok'); closeSettings(); }
+  else { toast(res.error||'저장 실패','err'); }
+}
+
+// ---------- 이벤트 바인딩 ----------
+$('#btnStart').onclick = start;
+$('#btnStop').onclick = stop;
+$('#selAll').onclick = ()=>document.querySelectorAll('.sp').forEach(c=>c.checked=true);
+$('#selNone').onclick = ()=>document.querySelectorAll('.sp').forEach(c=>c.checked=false);
+$('#btnSettings').onclick = openSettings;
+$('#btnCloseSettings').onclick = closeSettings;
+$('#btnAddRow').onclick = ()=>{ $('#editorBody').insertAdjacentHTML('beforeend', editorRow({url:'',http2:true})); };
+$('#btnSaveSites').onclick = saveSites;
+$('#editorBody').addEventListener('click', e=>{ if(e.target.classList.contains('rowdel')) e.target.closest('tr').remove(); });
+$('#settings').addEventListener('click', e=>{ if(e.target.id==='settings') closeSettings(); });
+
+// ---------- 초기화 ----------
+(async function init(){
+  await loadEngine();
+  await loadSites();
+  await refresh();   // 서버에 이미 실행 중인 세션이 있으면 반영
+})();
+</script>
+</body>
+</html>
